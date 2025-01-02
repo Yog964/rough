@@ -25,6 +25,10 @@
             const metadataURL = URL + "metadata.json";
 
             try {
+                // Log the URLs to verify they're correct
+                console.log("Model URL:", modelURL);
+                console.log("Metadata URL:", metadataURL);
+
                 // Load the model and metadata
                 model = await tmImage.load(modelURL, metadataURL);
                 maxPredictions = model.getTotalClasses();
