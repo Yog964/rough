@@ -1,76 +1,91 @@
-<script>
-  let videoElement = document.getElementById("videoElement");
-  let predictionOutput = document.getElementById("predictionOutput");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hand Gesture Classification with TensorFlow.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-legacy"></script>
+</head>
+<body>
+  <h1>Hand Gesture Classification with TensorFlow.js</h1>
+  <video id="videoElement" width="640" height="480" autoplay></video>
+  <div id="predictionOutput" 
+       style="font-size: 24px; color: rgb(20, 11, 11); width: 70%; height: 200px; background-color: rgba(191, 54, 54, 0.7); padding: 10px; border-radius: 5px; border: 2px solid #ffffff;">
+  </div>
 
-  // Define your gesture labels (this should match your model's output classes)
-  const gestureLabels = ["Mattar", "Chilli"];  // Example labels, modify as per your model's classes
+  <script>
+    document.addEventListener('DOMContentLoaded', async (event) => {
+      const videoElement = document.getElementById("videoElement");
+      const predictionOutput = document.getElementById("predictionOutput");
 
-  // Load the model (using model.json and weights.bin from GitHub)
-  async function loadModel() {
-    try {
-      const model = await tf.loadGraphModel('https://raw.githubusercontent.com/Yog964/rough/main/model.json');  // Raw GitHub URL to model.json
-      console.log('Model Loaded');
-      return model;
-    } catch (error) {
-      console.error('Error loading model:', error);
-      return null;  // Return null if model loading fails
-    }
-  }
+      // Define your gesture labels
+      const gestureLabels = ["Mattar", "Chilli"];  // Example labels, modify as per your model's classes
 
-  // Preprocess the frame (resize, normalize, and add batch dimension)
-  function preprocess(frame) {
-    const tensor = tf.browser.fromPixels(frame);
-    const resized = tf.image.resizeBilinear(tensor, [300, 300]);  // Update this size if needed
-    const normalized = resized.div(tf.scalar(255.0));  // Normalize to [0, 1]
-    return normalized.expandDims(0);  // Add batch dimension
-  }
+      // Load the model
+      async function loadModel() {
+        try {
+          const model = await tf.loadGraphModel('https://raw.githubusercontent.com/Yog964/rough/main/model.json');  // Raw GitHub URL to model.json
+          console.log('Model Loaded');
+          return model;
+        } catch (error) {
+          console.error('Error loading model:', error);
+          return null;  // Return null if model loading fails
+        }
+      }
 
-  // Capture the current frame from the video element
-  function captureFrame(video) {
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    return canvas;
-  }
+      // Preprocess the frame (resize, normalize, and add batch dimension)
+      function preprocess(frame) {
+        const tensor = tf.browser.fromPixels(frame);
+        const resized = tf.image.resizeBilinear(tensor, [300, 300]);  // Update this size if needed
+        const normalized = resized.div(tf.scalar(255.0));  // Normalize to [0, 1]
+        return normalized.expandDims(0);  // Add batch dimension
+      }
 
-  // Make a prediction using the loaded model
-  async function predict(model) {
-    if (!model) {
-      console.error('Model is not loaded');
-      return;  // Exit if model is not loaded
-    }
+      // Capture the current frame from the video element
+      function captureFrame(video) {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0);
+        return canvas;
+      }
 
-    const video = videoElement;
-    const frame = captureFrame(video);  // Capture the current frame
+      // Make a prediction using the loaded model
+      async function predict(model) {
+        if (!model) {
+          console.error('Model is not loaded');
+          return;  // Exit if model is not loaded
+        }
 
-    // Preprocess the frame
-    const processedFrame = preprocess(frame);
+        const frame = captureFrame(videoElement);  // Capture the current frame
+        const processedFrame = preprocess(frame);  // Preprocess the frame
+        const prediction = await model.predict(processedFrame);  // Make a prediction
 
-    // Make a prediction using the model
-    const prediction = await model.predict(processedFrame);
+        // Get the predicted class (the class with the highest probability)
+        const predictedClass = prediction.argMax(1).dataSync()[0];  // Get the index of the highest probability
 
-    // Get the predicted class (the class with the highest probability)
-    const predictedClass = prediction.argMax(1).dataSync()[0];  // Get the index of the highest probability
+        console.log('Prediction:', predictedClass);
+        predictionOutput.innerText = 'Predicted Gesture: ' + gestureLabels[predictedClass];  // Display the gesture label
+      }
 
-    console.log('Prediction:', predictedClass);
-    predictionOutput.innerText = 'Predicted Gesture: ' + gestureLabels[predictedClass];  // Display the gesture label
-  }
+      // Start the webcam and make predictions
+      async function startWebcam() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        videoElement.srcObject = stream;  // Set the video stream as the source for the video element
 
-  // Start the webcam and make predictions
-  async function startWebcam() {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    videoElement.srcObject = stream;  // Set the video stream as the source for the video element
+        const model = await loadModel();  // Load the model
 
-    const model = await loadModel();  // Load the model
+        // Continuously make predictions every second (1000ms)
+        setInterval(() => {
+          predict(model);
+        }, 1000);
+      }
 
-    // Continuously make predictions every second (1000ms)
-    setInterval(() => {
-      predict(model);
-    }, 1000);
-  }
-
-  // Start the webcam and the predictions
-  startWebcam();
-</script>
+      // Start the webcam and the predictions
+      startWebcam();
+    });
+  </script>
+</body>
+</html>
