@@ -10,27 +10,21 @@
   <h1>Hand Gesture Classification</h1>
   <video id="videoElement" width="640" height="480" autoplay></video>
   <div id="predictionOutput" 
-       style="font-size: 24px; 
-              color: #fff; 
-              background-color: rgba(0, 0, 0, 0.7); 
-              padding: 10px; 
-              border-radius: 5px; 
-              margin-top: 10px; 
-              text-align: center;"></div>
+       style="font-size: 240px; color: green; background-color: lightyellow; padding: 10px; margin-top: 10px; width: 500px; border: 1px solid black;">
+    Prediction will appear here.
+  </div>
 
   <script>
-    const modelURL = "https://teachablemachine.withgoogle.com/models/vqSTbGVX3/"; // Replace YOUR_MODEL_ID
+    const modelURL = "https://raw.githubusercontent.com/Yog964/rough/main/model.json"; // Update with your raw URL
+    const gestureLabels = ["Class 1", "Class 2"]; // Update with your class names
 
     let videoElement = document.getElementById("videoElement");
     let predictionOutput = document.getElementById("predictionOutput");
-    let model; // Declare model globally
+    let model;
 
-    const labels = ["Gesture 1", "Gesture 2"]; // Update with your class labels
-
-    // Load the Teachable Machine model
+    // Load the model
     async function loadModel() {
       try {
-        console.log("Loading model...");
         model = await tf.loadGraphModel(modelURL);
         console.log("Model loaded successfully.");
       } catch (error) {
@@ -38,15 +32,15 @@
       }
     }
 
-    // Preprocess the video frame
+    // Preprocess the frame
     function preprocessFrame(frame) {
       const tensor = tf.browser.fromPixels(frame);
-      const resized = tf.image.resizeBilinear(tensor, [224, 224]); // Teachable Machine models often use 224x224
+      const resized = tf.image.resizeBilinear(tensor, [224, 224]);
       const normalized = resized.div(tf.scalar(255.0));
-      return normalized.expandDims(0); // Add batch dimension
+      return normalized.expandDims(0);
     }
 
-    // Capture a frame from the video element
+    // Capture a frame from the video
     function captureFrame(video) {
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
@@ -59,18 +53,17 @@
     // Make predictions
     async function predict() {
       if (!model) {
-        console.warn("Model not loaded yet.");
+        console.log("Model not loaded yet.");
         return;
       }
 
       const frame = captureFrame(videoElement);
       const processedFrame = preprocessFrame(frame);
-      const prediction = await model.predict(processedFrame).data();
-      const predictedIndex = prediction.indexOf(Math.max(...prediction));
-      const predictedLabel = labels[predictedIndex];
 
-      predictionOutput.innerText = `Prediction: ${predictedLabel}`;
-      console.log("Prediction:", predictedLabel, prediction);
+      const predictions = await model.predict(processedFrame);
+      const predictedIndex = predictions.argMax(-1).dataSync()[0];
+
+      predictionOutput.innerText = `Predicted Gesture: ${gestureLabels[predictedIndex]}`;
     }
 
     // Start the webcam
@@ -80,18 +73,21 @@
         videoElement.srcObject = stream;
         console.log("Webcam started.");
       } catch (error) {
-        console.error("Error starting webcam:", error);
+        console.error("Error accessing webcam:", error);
       }
     }
 
-    // Start the process
-    async function start() {
+    // Initialize
+    async function initialize() {
       await loadModel();
       await startWebcam();
-      setInterval(predict, 1000); // Make predictions every 1 second
+
+      setInterval(() => {
+        predict();
+      }, 1000);
     }
 
-    start();
+    initialize();
   </script>
 </body>
 </html>
