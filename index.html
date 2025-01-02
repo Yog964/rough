@@ -1,95 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hand Gesture Classification</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Model</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 </head>
 <body>
-  <h1>Hand Gesture Classification</h1>
-  <video id="videoElement" width="640" height="480" autoplay></video>
-  <div id="predictionOutput" 
-       style="font-size: 240px; color: green; background-color: lightyellow; padding: 10px; margin-top: 10px; width: 500px; border: 1px solid black;">
-    Prediction will appear here.
-  </div>
+    <div>Teachable Machine Image Model</div>
+    <button type="button" onclick="init()">Start</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
 
-  <script>
-    const modelURL = "https://raw.githubusercontent.com/Yog964/rough/main/model.json"; // Update with your raw URL
-    const gestureLabels = ["Class 1", "Class 2"]; // Update with your class names
+    <script type="text/javascript">
+        // Replace the URL with your GitHub raw URL directory
+        const URL = "https://raw.githubusercontent.com/Yog964/rough/main/";
 
-    let videoElement = document.getElementById("videoElement");
-    let predictionOutput = document.getElementById("predictionOutput");
-    let model;
+        let model, webcam, labelContainer, maxPredictions;
 
-    // Load the model
-    async function loadModel() {
-      try {
-        model = await tf.loadGraphModel(modelURL);
-        console.log("Model loaded successfully.");
-      } catch (error) {
-        console.error("Error loading model:", error);
-      }
-    }
+        // Load the image model and setup the webcam
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
 
-    // Preprocess the frame
-    function preprocessFrame(frame) {
-      const tensor = tf.browser.fromPixels(frame);
-      const resized = tf.image.resizeBilinear(tensor, [224, 224]);
-      const normalized = resized.div(tf.scalar(255.0));
-      return normalized.expandDims(0);
-    }
+            try {
+                // Load the model and metadata
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
 
-    // Capture a frame from the video
-    function captureFrame(video) {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0);
-      return canvas;
-    }
+                // Setup the webcam
+                const flip = true; // Flip webcam for correct mirroring
+                webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
+                await webcam.setup(); // Request access to the webcam
+                await webcam.play();
+                window.requestAnimationFrame(loop);
 
-    // Make predictions
-    async function predict() {
-      if (!model) {
-        console.log("Model not loaded yet.");
-        return;
-      }
+                // Append elements to the DOM
+                document.getElementById("webcam-container").appendChild(webcam.canvas);
+                labelContainer = document.getElementById("label-container");
+                for (let i = 0; i < maxPredictions; i++) {
+                    labelContainer.appendChild(document.createElement("div"));
+                }
+            } catch (error) {
+                console.error("Error initializing the model:", error);
+            }
+        }
 
-      const frame = captureFrame(videoElement);
-      const processedFrame = preprocessFrame(frame);
+        async function loop() {
+            webcam.update(); // Update the webcam frame
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
 
-      const predictions = await model.predict(processedFrame);
-      const predictedIndex = predictions.argMax(-1).dataSync()[0];
-
-      predictionOutput.innerText = `Predicted Gesture: ${gestureLabels[predictedIndex]}`;
-    }
-
-    // Start the webcam
-    async function startWebcam() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        videoElement.srcObject = stream;
-        console.log("Webcam started.");
-      } catch (error) {
-        console.error("Error accessing webcam:", error);
-      }
-    }
-
-    // Initialize
-    async function initialize() {
-      await loadModel();
-      await startWebcam();
-
-      setInterval(() => {
-        predict();
-      }, 1000);
-    }
-
-    initialize();
-  </script>
+        // Run the webcam image through the image model
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction =
+                    prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+                labelContainer.childNodes[i].innerHTML = classPrediction;
+            }
+        }
+    </script>
 </body>
 </html>
