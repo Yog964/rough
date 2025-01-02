@@ -21,10 +21,10 @@
     // Define your gesture labels (this should match your model's output classes)
     const gestureLabels = ["Mattar", "Chilli"];  // Example labels, modify as per your model's classes
 
-    // Load the model (using model.json and weights.bin)
+    // Load the model (using model.json and weights.bin from GitHub)
     async function loadModel() {
       try {
-        const model = await tf.loadGraphModel('models/model.json');  // Path to your model.json file
+        const model = await tf.loadGraphModel('https://raw.githubusercontent.com/your-username/your-repository/main/model.json');  // Raw GitHub URL to model.json
         console.log('Model Loaded');
         return model;
       } catch (error) {
